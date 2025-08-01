@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask Around Tally</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #E8F1F5;
+            min-height: 100vh;
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #B8C5CC;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 3px;
+        }
+
+        /* Title Bar */
+        .title-bar {
+            background: linear-gradient( #003366 100%);
+            border-bottom: 1px solid #B8C5CC;
+            padding: 8px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title-text {
+            display: flex;
+            align-items: center;
+        }
+
+        .tally-logo {
+            background: linear-gradient(to bottom, #4A7B96 0%, #3E6B82 100%);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 8px;
+            font-style: italic;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #5B9BD5;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: #ff4444;
+            color: white;
+            border-radius: 2px;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            min-height: 500px;
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #F0F4F7;
+            border-right: 1px solid #B8C5CC;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            background: linear-gradient(to bottom, #E6EDF1 0%, #D4E1E8 100%);
+            border-bottom: 1px solid #B8C5CC;
+            padding: 12px 15px;
+            font-weight: bold;
+            color: #2E5266;
+            font-size: 14px;
+        }
+
+        .recent-questions {
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .no-questions {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            padding: 20px 10px;
+            font-size: 12px;
+        }
+
+        .question-item {
+            background: white;
+            border: 1px solid #C5D0D6;
+            border-radius: 2px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #2E5266;
+            line-height: 1.3;
+            word-wrap: break-word;
+            transition: all 0.2s ease;
+        }
+
+        .question-item:hover {
+            background: #E6F2FF;
+            border-color: #4A7B96;
+        }
+
+        .question-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Right Sidebar (FAQ) */
+        .faq-sidebar {
+            width: 250px;
+            background: #F8F9FA;
+            border-left: 1px solid #B8C5CC;
+            flex-shrink: 0;
+        }
+
+        .faq-header {
+            background: linear-gradient(to bottom, #E8F4F8 0%, #D8E8F0 100%);
+            border-bottom: 1px solid #B8C5CC;
+            padding: 12px 15px;
+            font-weight: bold;
+            color: #2E5266;
+            font-size: 14px;
+        }
+
+        .faq-questions {
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .faq-item {
+            background: white;
+            border: 1px solid #C5D0D6;
+            border-radius: 2px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #2E5266;
+            line-height: 1.3;
+            word-wrap: break-word;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .faq-item:hover {
+            background: #E6F2FF;
+            border-color: #4A7B96;
+        }
+
+        .faq-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .faq-count {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: #4A7B96;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        /* Main Content */
+        .content {
+            flex: 1;
+            padding: 20px;
+            background: #F8FAFB;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #2E5266;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #B8C5CC;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: inherit;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4A7B96;
+            box-shadow: 0 0 3px rgba(74, 123, 150, 0.3);
+        }
+
+        #questionInput {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        #answerOutput {
+            min-height: 450px;
+            background-color: #FAFBFC;
+            border: 1px solid #B8C5CC;
+            color: #2E5266;
+            resize: vertical;
+            cursor: default;
+        }
+
+        /* Prediction List */
+        .prediction-list {
+            background: white;
+            border: 1px solid #B8C5CC;
+            border-top: none;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            border-radius: 0 0 2px 2px;
+            z-index: 1000;
+            position: relative;
+        }
+
+        .prediction-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #E8EDF1;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .prediction-item:hover {
+            background-color: #E6F2FF;
+            color: #2E5266;
+        }
+
+        .prediction-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Buttons */
+        .button-group {
+            margin: 15px 0;
+        }
+
+        .tally-button {
+            background: linear-gradient(to bottom, #E6EDF1 0%, #D4E1E8 100%);
+            border: 1px solid #B8C5CC;
+            color: #2E5266;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        .tally-button:hover {
+            background: linear-gradient(to bottom, #D4E1E8 0%, #C5D4DB 100%);
+        }
+
+        .tally-button:active {
+            background: linear-gradient(to bottom, #C5D4DB 0%, #B6C9D1 100%);
+        }
+
+        .tally-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .tally-button.primary {
+            background: linear-gradient(to bottom, #4A7B96 0%, #3E6B82 100%);
+            color: white;
+            border-color: #36597A;
+        }
+
+        .tally-button.primary:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #3E6B82 0%, #325A73 100%);
+        }
+
+        /* Loading and Messages */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 15px;
+            color: #666;
+            font-style: italic;
+            font-size: 13px;
+        }
+
+        .message {
+            padding: 10px 14px;
+            border-radius: 2px;
+            margin: 10px 0;
+            font-size: 13px;
+            display: none;
+        }
+
+        .error-message {
+            background-color: #FFF0F0;
+            border: 1px solid #FFB8B8;
+            color: #CC0000;
+        }
+
+        .success-message {
+            background-color: #F0FFF0;
+            border: 1px solid #B8FFB8;
+            color: #008800;
+        }
+
+        .connection-status {
+            padding: 8px 12px;
+            border-radius: 2px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .connection-success {
+            background-color: #F0FFF0;
+            border: 1px solid #B8FFB8;
+            color: #008800;
+        }
+
+        .connection-error {
+            background-color: #FFF0F0;
+            border: 1px solid #FFB8B8;
+            color: #CC0000;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .faq-sidebar {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 0;
+            }
+
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+
+            .faq-sidebar {
+                display: none;
+            }
+
+            .content {
+                padding: 15px;
+            }
+
+            #questionInput {
+                min-height: 120px;
+            }
+
+            #answerOutput {
+                min-height: 240px;
+            }
+        }
+
+        /* Custom scrollbar */
+        .prediction-list::-webkit-scrollbar,
+        .recent-questions::-webkit-scrollbar,
+        .faq-questions::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .prediction-list::-webkit-scrollbar-track,
+        .recent-questions::-webkit-scrollbar-track,
+        .faq-questions::-webkit-scrollbar-track {
+            background: #F0F4F7;
+        }
+
+        .prediction-list::-webkit-scrollbar-thumb,
+        .recent-questions::-webkit-scrollbar-thumb,
+        .faq-questions::-webkit-scrollbar-thumb {
+            background: #C5D0D6;
+            border-radius: 2px;
+        }
+
+        .prediction-list::-webkit-scrollbar-thumb:hover,
+        .recent-questions::-webkit-scrollbar-thumb:hover,
+        .faq-questions::-webkit-scrollbar-thumb:hover {
+            background: #B8C5CC;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div class="title-text">
+                <div class="tally-logo">T</div>
+                Ask Around Tally (Help Mode)
+            </div>
+            <button class="close-btn">×</button>
+        </div>
+
+        <div class="main-layout">
+            <!-- Left Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">Recent Questions</div>
+                <div id="recentQuestions" class="recent-questions">
+                    <div class="no-questions">Loading recent questions...</div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="content">
+                <!-- Connection Status -->
+                <div id="connectionStatus" class="connection-status" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label for="questionInput">Ask Your Question:</label>
+                    <textarea 
+                        id="questionInput" 
+                        placeholder="Type your Tally question here... (e.g., How to create a new company in Tally?)"
+                        autocomplete="off"
+                    ></textarea>
+                    <div id="predictionList" class="prediction-list"></div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="askButton" class="tally-button primary" onclick="getAnswer()">
+                        Get Answer
+                    </button>
+                    <button class="tally-button" onclick="clearForm()">
+                        Clear
+                    </button>
+                </div>
+
+                <div class="loading" id="loading">
+                    Searching Tally knowledge base...
+                </div>
+
+                <div class="form-group">
+                    <label for="answerOutput">Answer:</label>
+                    <textarea 
+                        id="answerOutput" 
+                        placeholder="Your answer will appear here..."
+                        readonly
+                    ></textarea>
+                </div>
+
+                <div id="errorMessage" class="message error-message"></div>
+                <div id="successMessage" class="message success-message"></div>
+            </div>
+
+            <!-- Right Sidebar (FAQ) -->
+            <div class="faq-sidebar">
+                <div class="faq-header">Frequently Asked</div>
+                <div id="faqQuestions" class="faq-questions">
+                    <div class="no-questions">Loading FAQ...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Supabase JavaScript SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // REPLACE THESE WITH YOUR SUPABASE PROJECT DETAILS
+        const SUPABASE_URL = 'https://vjuvczgbxcxwifjgjpkv.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqdXZjemdieGN4d2lmamdqcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyODA2OTUsImV4cCI6MjA2Njg1NjY5NX0.ZohvZVAdkVn3Rcpeh03tP1uSxdPbgkwr8E0kcIoeoYE';
+
+        // Initialize Supabase client
+        let supabaseClient;
+        let tallyQAData = [];
+        let debounceTimer = null;
+
+        // Recent questions tracking
+        let recentQuestions = [];
+        let faqQuestions = [];
+        const MAX_RECENT_QUESTIONS = 8;
+        const MAX_FAQ_QUESTIONS = 5;
+        const userSession = getUserSession();
+
+        // DOM elements
+        const questionInput = document.getElementById('questionInput');
+        const answerOutput = document.getElementById('answerOutput');
+        const predictionList = document.getElementById('predictionList');
+        const askButton = document.getElementById('askButton');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            console.log('User session:', userSession);
+            initializeSupabase();
+        });
+
+        function getUserSession() {
+            // Try to get existing session from localStorage
+            let sessionId = localStorage.getItem('tally_user_session');
+            
+            // If no existing session, create a new one
+            if (!sessionId) {
+                sessionId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                localStorage.setItem('tally_user_session', sessionId);
+                console.log('Created new session:', sessionId);
+            } else {
+                console.log('Using existing session:', sessionId);
+            }
+            
+            return sessionId;
+        }
+
+        function clearUserSession() {
+            localStorage.removeItem('tally_user_session');
+            recentQuestions = [];
+            updateRecentQuestionsDisplay();
+            // Optionally reload page to get new session
+            location.reload();
+        }
+
+        async function initializeSupabase() {
+            try {
+                // Check if Supabase credentials are configured
+                if (SUPABASE_URL === 'YOUR_SUPABASE_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+                    showConnectionError('Please configure your Supabase credentials in the JavaScript code');
+                    return;
+                }
+
+                // Initialize Supabase client
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase client initialized');
+                
+                // Test connection and load data
+                await loadTallyData();
+                console.log('Tally data loaded:', tallyQAData.length, 'items');
+                
+                await loadRecentQuestions();
+                console.log('Recent questions loaded:', recentQuestions.length, 'items');
+                
+                await loadFAQQuestions();
+                console.log('FAQ questions loaded:', faqQuestions.length, 'items');
+                
+                // Setup event listeners after successful initialization
+                setupEventListeners();
+                
+                showConnectionSuccess('Connected to Tally knowledge base');
+                
+            } catch (error) {
+                console.error('Error initializing Supabase:', error);
+                showConnectionError('Failed to connect to database: ' + error.message);
+            }
+        }
+
+        async function loadTallyData() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tally_qa')
+                    .select('*')
+                    .order('id');
+
+                if (error) throw error;
+
+                tallyQAData = data || [];
+                console.log('Loaded', tallyQAData.length, 'Q&A records from database');
+                
+            } catch (error) {
+                console.error('Error loading Tally data:', error);
+                throw error;
+            }
+        }
+
+        async function loadRecentQuestions() {
+            try {
+                console.log('Loading recent questions for session:', userSession);
+                
+                const { data, error } = await supabaseClient
+                    .from('recent_questions')
+                    .select('question, asked_at')
+                    .eq('user_session', userSession)
+                    .order('asked_at', { ascending: false })
+                    .limit(MAX_RECENT_QUESTIONS);
+
+                if (error) {
+                    console.error('Database error loading recent questions:', error);
+                    throw error;
+                }
+
+                console.log('Raw data from database:', data);
+                
+                recentQuestions = data ? data.map(item => item.question) : [];
+                console.log('Processed recent questions:', recentQuestions);
+                
+                updateRecentQuestionsDisplay();
+                
+                // Clean up old questions (keep only last 50 per session to avoid database bloat)
+                if (data && data.length > 0) {
+                    await cleanupOldQuestions();
+                }
+                
+            } catch (error) {
+                console.error('Error loading recent questions:', error);
+                // Non-critical error, continue with empty recent questions
+                recentQuestions = [];
+                updateRecentQuestionsDisplay();
+            }
+        }
+
+        async function loadFAQQuestions() {
+            try {
+                console.log('Loading FAQ questions...');
+                
+                // Get most frequently asked questions across all sessions
+                const { data, error } = await supabaseClient
+                    .rpc('get_frequently_asked_questions', { limit_count: MAX_FAQ_QUESTIONS });
+
+                if (error) {
+                    console.error('Database error loading FAQ questions:', error);
+                    // If RPC function doesn't exist, fall back to manual query
+                    return await loadFAQQuestionsFallback();
+                }
+
+                console.log('FAQ data from RPC:', data);
+                
+                faqQuestions = data || [];
+                updateFAQDisplay();
+                
+            } catch (error) {
+                console.error('Error loading FAQ questions:', error);
+                // Fall back to manual query
+                await loadFAQQuestionsFallback();
+            }
+        }
+
+        async function loadFAQQuestionsFallback() {
+            try {
+                console.log('Loading FAQ questions (fallback method)...');
+                
+                // Manual query to get frequently asked questions
+                const { data, error } = await supabaseClient
+                    .from('recent_questions')
+                    .select('question')
+                    .order('asked_at', { ascending: false })
+                    .limit(1000); // Get recent 1000 questions
+
+                if (error) throw error;
+
+                // Count question frequencies
+                const questionCounts = {};
+                data.forEach(item => {
+                    const question = item.question;
+                    questionCounts[question] = (questionCounts[question] || 0) + 1;
+                });
+
+                // Sort by frequency and get top 5
+                const sortedQuestions = Object.entries(questionCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, MAX_FAQ_QUESTIONS)
+                    .map(([question, count]) => ({ question, count }));
+
+                console.log('FAQ questions (fallback):', sortedQuestions);
+                
+                faqQuestions = sortedQuestions;
+                updateFAQDisplay();
+                
+            } catch (error) {
+                console.error('Error in FAQ fallback:', error);
+                faqQuestions = [];
+                updateFAQDisplay();
+            }
+        }
+
+        async function cleanupOldQuestions() {
+            try {
+                // Keep only the most recent 50 questions per session
+                const { data, error } = await supabaseClient
+                    .from('recent_questions')
+                    .select('id, asked_at')
+                    .eq('user_session', userSession)
+                    .order('asked_at', { ascending: false })
+                    .range(50, 1000); // Get records from position 50 onwards
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    const idsToDelete = data.map(item => item.id);
+                    
+                    await supabaseClient
+                        .from('recent_questions')
+                        .delete()
+                        .in('id', idsToDelete);
+                        
+                    console.log('Cleaned up', data.length, 'old questions');
+                }
+                
+            } catch (error) {
+                console.error('Error cleaning up old questions:', error);
+                // Non-critical error, don't throw
+            }
+        }
+
+        async function saveRecentQuestion(question) {
+            try {
+                console.log('Saving recent question:', question, 'for session:', userSession);
+                
+                // First, delete any existing instance of this question for this session
+                const { error: deleteError } = await supabaseClient
+                    .from('recent_questions')
+                    .delete()
+                    .eq('user_session', userSession)
+                    .eq('question', question);
+
+                if (deleteError) {
+                    console.error('Error deleting duplicate question:', deleteError);
+                }
+
+                // Then insert the new one
+                const { data, error } = await supabaseClient
+                    .from('recent_questions')
+                    .insert([{
+                        question: question,
+                        user_session: userSession,
+                        asked_at: new Date().toISOString()
+                    }])
+                    .select();
+
+                if (error) {
+                    console.error('Error inserting recent question:', error);
+                    throw error;
+                }
+                
+                console.log('Successfully saved recent question:', data);
+                
+                // Refresh FAQ after adding new question
+                setTimeout(() => {
+                    loadFAQQuestions();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error saving recent question:', error);
+                // Don't throw error as this is non-critical
+            }
+        }
+
+        function setupEventListeners() {
+            questionInput.addEventListener('input', handleQuestionInput);
+            questionInput.addEventListener('keydown', handleKeyDown);
+            questionInput.addEventListener('blur', hidePredictions);
+            document.addEventListener('click', handleDocumentClick);
+            console.log('Event listeners set up');
+        }
+
+        function handleQuestionInput(event) {
+            const query = event.target.value.trim();
+            
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+            
+            debounceTimer = setTimeout(() => {
+                if (query.length >= 2) {
+                    showPredictions(query);
+                } else {
+                    hidePredictions();
+                }
+            }, 300);
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                
+                const visiblePredictions = predictionList.querySelectorAll('.prediction-item');
+                if (visiblePredictions.length > 0 && predictionList.style.display !== 'none') {
+                    selectPrediction(visiblePredictions[0]);
+                } else {
+                    getAnswer();
+                }
+            } else if (event.key === 'Escape') {
+                hidePredictions();
+            }
+        }
+
+        function showPredictions(query) {
+            const predictions = findSimilarQuestions(query);
+            
+            if (predictions.length === 0) {
+                hidePredictions();
+                return;
+            }
+
+            predictionList.innerHTML = '';
+            predictionList.style.display = 'block';
+
+            predictions.forEach(qa => {
+                const item = document.createElement('div');
+                item.className = 'prediction-item';
+                item.textContent = qa.question;
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selectPrediction(item, qa);
+                });
+                predictionList.appendChild(item);
+            });
+        }
+
+        function hidePredictions() {
+            setTimeout(() => {
+                predictionList.style.display = 'none';
+            }, 150);
+        }
+
+        function selectPrediction(item, qa = null) {
+            if (!qa) {
+                qa = tallyQAData.find(q => q.question === item.textContent);
+            }
+            
+            if (qa) {
+                questionInput.value = qa.question;
+                answerOutput.value = qa.answer;
+                addToRecentQuestions(qa.question);
+                hidePredictions();
+                showSuccessMessage('Answer found!');
+            }
+        }
+
+        function findSimilarQuestions(query) {
+            const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
+            
+            if (queryWords.length === 0) return [];
+
+            return tallyQAData.filter(qa => {
+                const questionText = qa.question.toLowerCase();
+                const keywordText = qa.keywords.toLowerCase();
+                const answerText = qa.answer.toLowerCase();
+                
+                return queryWords.some(word => 
+                    questionText.includes(word) || 
+                    keywordText.includes(word) ||
+                    answerText.includes(word)
+                );
+            }).slice(0, 5);
+        }
+
+        async function addToRecentQuestions(question) {
+            console.log('Adding to recent questions:', question);
+            
+            // Remove if already exists in local array
+            recentQuestions = recentQuestions.filter(q => q !== question);
+            
+            // Add to beginning
+            recentQuestions.unshift(question);
+            
+            // Keep only last 8
+            if (recentQuestions.length > MAX_RECENT_QUESTIONS) {
+                recentQuestions = recentQuestions.slice(0, MAX_RECENT_QUESTIONS);
+            }
+            
+            console.log('Updated local recent questions:', recentQuestions);
+            
+            // Update display immediately
+            updateRecentQuestionsDisplay();
+            
+            // Save to database asynchronously
+            await saveRecentQuestion(question);
+        }
+
+        function updateRecentQuestionsDisplay() {
+            const container = document.getElementById('recentQuestions');
+            
+            console.log('Updating display with questions:', recentQuestions);
+            
+            if (recentQuestions.length === 0) {
+                container.innerHTML = '<div class="no-questions">No recent questions</div>';
+                return;
+            }
+            
+            container.innerHTML = recentQuestions.map(question => 
+                `<div class="question-item" onclick="loadRecentQuestion('${question.replace(/'/g, "\\'")}')">${question}</div>`
+            ).join('');
+        }
+
+        function updateFAQDisplay() {
+            const container = document.getElementById('faqQuestions');
+            
+            console.log('Updating FAQ display with questions:', faqQuestions);
+            
+            if (faqQuestions.length === 0) {
+                container.innerHTML = '<div class="no-questions">No frequently asked questions yet</div>';
+                return;
+            }
+            
+            container.innerHTML = faqQuestions.map(item => 
+                `<div class="faq-item" onclick="loadFAQQuestion('${item.question.replace(/'/g, "\\'")}')">
+                    ${item.question}
+                    <span class="faq-count">${item.count}</span>
+                </div>`
+            ).join('');
+        }
+
+        function loadRecentQuestion(question) {
+            console.log('Loading recent question:', question);
+            questionInput.value = question;
+            getAnswer();
+        }
+
+        function loadFAQQuestion(question) {
+            console.log('Loading FAQ question:', question);
+            questionInput.value = question;
+            getAnswer();
+        }
+
+        async function getAnswer() {
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                showErrorMessage('Please enter a question');
+                return;
+            }
+
+            if (tallyQAData.length === 0) {
+                showErrorMessage('Knowledge base not loaded. Please refresh the page.');
+                return;
+            }
+
+            hideMessages();
+            loading.style.display = 'block';
+            askButton.disabled = true;
+
+            try {
+                // Simulate search delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Search for exact match first
+                const exactMatch = tallyQAData.find(qa => 
+                    qa.question.toLowerCase() === question.toLowerCase()
+                );
+
+                if (exactMatch) {
+                    answerOutput.value = exactMatch.answer;
+                    await addToRecentQuestions(question);
+                    showSuccessMessage('Answer found!');
+                } else {
+                    // Search for similar questions
+                    const similarQuestions = findSimilarQuestions(question);
+                    
+                    if (similarQuestions.length > 0) {
+                        answerOutput.value = similarQuestions[0].answer;
+                        await addToRecentQuestions(question);
+                        showSuccessMessage('Similar answer found!');
+                    } else {
+                        answerOutput.value = 'Sorry, I couldn\'t find an answer to your question.\n\nPlease try:\n• Rephrasing your question\n• Using different keywords\n• Contacting support for assistance\n\nYou can also try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?';
+                        showErrorMessage('No matching answer found');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error getting answer:', error);
+                showErrorMessage('Error retrieving answer. Please try again.');
+                answerOutput.value = '';
+            } finally {
+                loading.style.display = 'none';
+                askButton.disabled = false;
+            }
+        }
+
+        function clearForm() {
+            questionInput.value = '';
+            answerOutput.value = '';
+            hidePredictions();
+            hideMessages();
+        }
+
+        function handleDocumentClick(event) {
+            if (!predictionList.contains(event.target) && event.target !== questionInput) {
+                hidePredictions();
+            }
+        }
+
+        function showConnectionSuccess(message) {
+            connectionStatus.textContent = message;
+            connectionStatus.className = 'connection-status connection-success';
+            connectionStatus.style.display = 'block';
+            setTimeout(() => {
+                connectionStatus.style.display = 'none';
+            }, 3000);
+        }
+
+        function showConnectionError(message) {
+            connectionStatus.textContent = message;
+            connectionStatus.className = 'connection-status connection-error';
+            connectionStatus.style.display = 'block';
+            // Don't auto-hide error messages
+        }
+
+        function showErrorMessage(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccessMessage(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function hideMessages() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
