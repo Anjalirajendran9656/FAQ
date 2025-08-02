@@ -521,12 +521,12 @@
         let tallyQAData = [];
         let debounceTimer = null;
 
-        // Recent questions tracking
+        // Recent questions tracking - using persistent user identifier
         let recentQuestions = [];
         let faqQuestions = [];
         const MAX_RECENT_QUESTIONS = 8;
         const MAX_FAQ_QUESTIONS = 5;
-        const userSession = getUserSession();
+        const persistentUserId = getPersistentUserId();
 
         // DOM elements
         const questionInput = document.getElementById('questionInput');
@@ -541,32 +541,39 @@
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing...');
-            console.log('User session:', userSession);
+            console.log('Persistent user ID:', persistentUserId);
             initializeSupabase();
         });
 
-        function getUserSession() {
-            // Try to get existing session from localStorage
-            let sessionId = localStorage.getItem('tally_user_session');
+        function getPersistentUserId() {
+            // Create a truly persistent user ID that survives logout/login
+            let userId = localStorage.getItem('tally_persistent_user_id');
             
-            // If no existing session, create a new one
-            if (!sessionId) {
-                sessionId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                localStorage.setItem('tally_user_session', sessionId);
-                console.log('Created new session:', sessionId);
+            if (!userId) {
+                // Create a unique identifier based on browser fingerprint + timestamp
+                const browserInfo = [
+                    navigator.userAgent,
+                    navigator.language,
+                    screen.width + 'x' + screen.height,
+                    new Date().getTimezoneOffset()
+                ].join('|');
+                
+                // Create a simple hash
+                let hash = 0;
+                for (let i = 0; i < browserInfo.length; i++) {
+                    const char = browserInfo.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                
+                userId = 'user_' + Math.abs(hash) + '_' + Date.now();
+                localStorage.setItem('tally_persistent_user_id', userId);
+                console.log('Created new persistent user ID:', userId);
             } else {
-                console.log('Using existing session:', sessionId);
+                console.log('Using existing persistent user ID:', userId);
             }
             
-            return sessionId;
-        }
-
-        function clearUserSession() {
-            localStorage.removeItem('tally_user_session');
-            recentQuestions = [];
-            updateRecentQuestionsDisplay();
-            // Optionally reload page to get new session
-            location.reload();
+            return userId;
         }
 
         async function initializeSupabase() {
@@ -622,12 +629,12 @@
 
         async function loadRecentQuestions() {
             try {
-                console.log('Loading recent questions for session:', userSession);
+                console.log('Loading recent questions for persistent user:', persistentUserId);
                 
                 const { data, error } = await supabaseClient
                     .from('recent_questions')
                     .select('question, asked_at')
-                    .eq('user_session', userSession)
+                    .eq('user_session', persistentUserId)
                     .order('asked_at', { ascending: false })
                     .limit(MAX_RECENT_QUESTIONS);
 
@@ -643,7 +650,7 @@
                 
                 updateRecentQuestionsDisplay();
                 
-                // Clean up old questions (keep only last 50 per session to avoid database bloat)
+                // Clean up old questions (keep only last 50 per user to avoid database bloat)
                 if (data && data.length > 0) {
                     await cleanupOldQuestions();
                 }
@@ -660,40 +667,28 @@
             try {
                 console.log('Loading FAQ questions...');
                 
-                // Get most frequently asked questions across all sessions
+                // Get all recent questions to calculate frequency
                 const { data, error } = await supabaseClient
-                    .rpc('get_frequently_asked_questions', { limit_count: MAX_FAQ_QUESTIONS });
+                    .from('recent_questions')
+                    .select('question, asked_at')
+                    .gte('asked_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+                    .order('asked_at', { ascending: false });
 
                 if (error) {
                     console.error('Database error loading FAQ questions:', error);
-                    // If RPC function doesn't exist, fall back to manual query
-                    return await loadFAQQuestionsFallback();
+                    faqQuestions = [];
+                    updateFAQDisplay();
+                    return;
                 }
 
-                console.log('FAQ data from RPC:', data);
-                
-                faqQuestions = data || [];
-                updateFAQDisplay();
-                
-            } catch (error) {
-                console.error('Error loading FAQ questions:', error);
-                // Fall back to manual query
-                await loadFAQQuestionsFallback();
-            }
-        }
+                console.log('Raw FAQ data:', data);
 
-        async function loadFAQQuestionsFallback() {
-            try {
-                console.log('Loading FAQ questions (fallback method)...');
-                
-                // Manual query to get frequently asked questions
-                const { data, error } = await supabaseClient
-                    .from('recent_questions')
-                    .select('question')
-                    .order('asked_at', { ascending: false })
-                    .limit(1000); // Get recent 1000 questions
-
-                if (error) throw error;
+                if (!data || data.length === 0) {
+                    console.log('No questions found for FAQ');
+                    faqQuestions = [];
+                    updateFAQDisplay();
+                    return;
+                }
 
                 // Count question frequencies
                 const questionCounts = {};
@@ -702,19 +697,20 @@
                     questionCounts[question] = (questionCounts[question] || 0) + 1;
                 });
 
-                // Sort by frequency and get top 5
+                // Sort by frequency and get top 5, only include questions asked more than once
                 const sortedQuestions = Object.entries(questionCounts)
-                    .sort((a, b) => b[1] - a[1])
+                    .filter(([question, count]) => count > 1) // Only questions asked more than once
+                    .sort((a, b) => b[1] - a[1]) // Sort by count descending
                     .slice(0, MAX_FAQ_QUESTIONS)
                     .map(([question, count]) => ({ question, count }));
 
-                console.log('FAQ questions (fallback):', sortedQuestions);
+                console.log('FAQ questions processed:', sortedQuestions);
                 
                 faqQuestions = sortedQuestions;
                 updateFAQDisplay();
                 
             } catch (error) {
-                console.error('Error in FAQ fallback:', error);
+                console.error('Error loading FAQ questions:', error);
                 faqQuestions = [];
                 updateFAQDisplay();
             }
@@ -722,11 +718,11 @@
 
         async function cleanupOldQuestions() {
             try {
-                // Keep only the most recent 50 questions per session
+                // Keep only the most recent 50 questions per user
                 const { data, error } = await supabaseClient
                     .from('recent_questions')
                     .select('id, asked_at')
-                    .eq('user_session', userSession)
+                    .eq('user_session', persistentUserId)
                     .order('asked_at', { ascending: false })
                     .range(50, 1000); // Get records from position 50 onwards
 
@@ -751,13 +747,13 @@
 
         async function saveRecentQuestion(question) {
             try {
-                console.log('Saving recent question:', question, 'for session:', userSession);
+                console.log('Saving recent question:', question, 'for user:', persistentUserId);
                 
-                // First, delete any existing instance of this question for this session
+                // First, delete any existing instance of this question for this user
                 const { error: deleteError } = await supabaseClient
                     .from('recent_questions')
                     .delete()
-                    .eq('user_session', userSession)
+                    .eq('user_session', persistentUserId)
                     .eq('question', question);
 
                 if (deleteError) {
@@ -769,7 +765,7 @@
                     .from('recent_questions')
                     .insert([{
                         question: question,
-                        user_session: userSession,
+                        user_session: persistentUserId,
                         asked_at: new Date().toISOString()
                     }])
                     .select();
@@ -881,7 +877,7 @@
 
             return tallyQAData.filter(qa => {
                 const questionText = qa.question.toLowerCase();
-                const keywordText = qa.keywords.toLowerCase();
+                const keywordText = qa.keywords ? qa.keywords.toLowerCase() : '';
                 const answerText = qa.answer.toLowerCase();
                 
                 return queryWords.some(word => 
@@ -991,27 +987,70 @@
                     await addToRecentQuestions(question);
                     showSuccessMessage('Answer found!');
                 } else {
-                    // Search for similar questions
+                    // Search for similar questions with better matching
                     const similarQuestions = findSimilarQuestions(question);
                     
                     if (similarQuestions.length > 0) {
-                        answerOutput.value = similarQuestions[0].answer;
-                        await addToRecentQuestions(question);
-                        showSuccessMessage('Similar answer found!');
+                        // Check if the similarity is good enough
+                        const bestMatch = findBestMatch(question, similarQuestions);
+                        
+                        if (bestMatch && bestMatch.score > 0.3) { // Minimum similarity threshold
+                            answerOutput.value = bestMatch.qa.answer;
+                            await addToRecentQuestions(question);
+                            showSuccessMessage('Similar answer found!');
+                        } else {
+                            // No good match found
+                            answerOutput.value = 'No data available.\n\nSorry, I couldn\'t find an answer to your question in the Tally knowledge base.\n\nPlease try:\n• Rephrasing your question with different keywords\n• Being more specific about your Tally operation\n• Checking if your question is related to Tally software\n\nFor example, try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?\n• How to generate reports in Tally?';
+                            showErrorMessage('No data available for this question');
+                        }
                     } else {
-                        answerOutput.value = 'Sorry, I couldn\'t find an answer to your question.\n\nPlease try:\n• Rephrasing your question\n• Using different keywords\n• Contacting support for assistance\n\nYou can also try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?';
-                        showErrorMessage('No matching answer found');
+                        // No similar questions found at all
+                        answerOutput.value = 'No data available.\n\nSorry, I couldn\'t find an answer to your question in the Tally knowledge base.\n\nPlease try:\n• Rephrasing your question with different keywords\n• Being more specific about your Tally operation\n• Checking if your question is related to Tally software\n\nFor example, try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?\n• How to generate reports in Tally?';
+                        showErrorMessage('No data available for this question');
                     }
                 }
                 
             } catch (error) {
                 console.error('Error getting answer:', error);
                 showErrorMessage('Error retrieving answer. Please try again.');
-                answerOutput.value = '';
+                answerOutput.value = 'No data available.\n\nAn error occurred while searching for your answer. Please try again.';
             } finally {
                 loading.style.display = 'none';
                 askButton.disabled = false;
             }
+        }
+
+        function findBestMatch(query, similarQuestions) {
+            if (similarQuestions.length === 0) return null;
+            
+            const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            similarQuestions.forEach(qa => {
+                const questionWords = qa.question.toLowerCase().split(' ').filter(word => word.length > 2);
+                const keywordWords = qa.keywords ? qa.keywords.toLowerCase().split(' ').filter(word => word.length > 2) : [];
+                
+                // Calculate similarity score based on word matches
+                let matchCount = 0;
+                let totalWords = Math.max(queryWords.length, questionWords.length);
+                
+                queryWords.forEach(word => {
+                    if (questionWords.some(qWord => qWord.includes(word) || word.includes(qWord)) ||
+                        keywordWords.some(kWord => kWord.includes(word) || word.includes(kWord))) {
+                        matchCount++;
+                    }
+                });
+                
+                const score = matchCount / totalWords;
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = { qa, score };
+                }
+            });
+            
+            return bestMatch;
         }
 
         function clearForm() {
@@ -1063,6 +1102,15 @@
             errorMessage.style.display = 'none';
             successMessage.style.display = 'none';
         }
+
+        // Add a function to manually clear persistent storage (for testing)
+        function clearPersistentData() {
+            localStorage.removeItem('tally_persistent_user_id');
+            location.reload();
+        }
+
+        // Make it available in console for testing
+        window.clearPersistentData = clearPersistentData;
     </script>
 </body>
 </html>
