@@ -370,6 +370,27 @@
             color: #CC0000;
         }
 
+        /* N8N Status */
+        .n8n-status {
+            padding: 6px 10px;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .n8n-connected {
+            background-color: #E8F5E8;
+            border: 1px solid #90EE90;
+            color: #006400;
+        }
+
+        .n8n-disconnected {
+            background-color: #FFE8E8;
+            border: 1px solid #FFB8B8;
+            color: #CC0000;
+        }
+
         /* Responsive Design */
         @media (max-width: 1024px) {
             .faq-sidebar {
@@ -461,6 +482,9 @@
             <div class="content">
                 <!-- Connection Status -->
                 <div id="connectionStatus" class="connection-status" style="display: none;"></div>
+                
+                <!-- N8N Status -->
+                <div id="n8nStatus" class="n8n-status" style="display: none;"></div>
 
                 <div class="form-group">
                     <label for="questionInput">Ask Your Question:</label>
@@ -512,9 +536,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // REPLACE THESE WITH YOUR SUPABASE PROJECT DETAILS
+        // CONFIGURATION - Update these URLs
         const SUPABASE_URL = 'https://vjuvczgbxcxwifjgjpkv.supabase.co'; 
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqdXZjemdieGN4d2lmamdqcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyODA2OTUsImV4cCI6MjA2Njg1NjY5NX0.ZohvZVAdkVn3Rcpeh03tP1uSxdPbgkwr8E0kcIoeoYE';
+        
+        // N8N Configuration - UPDATE THESE WITH YOUR N8N URLS
+        const N8N_BASE_URL = 'http://localhost:5678'; // Change to your n8n URL
+        const N8N_QUESTION_WEBHOOK = `${http://localhost:5678/webhook/webhook-tally-questionL}/webhook/webhook-tally-question`;
+        const N8N_QA_SYNC_WEBHOOK = `${http://localhost:5678/webhook/webhook-tally-qa-sync}/webhook/webhook-tally-qa-sync`;
 
         // Initialize Supabase client
         let supabaseClient;
@@ -528,6 +557,9 @@
         const MAX_FAQ_QUESTIONS = 5;
         const persistentUserId = getPersistentUserId();
 
+        // N8N connection status
+        let n8nConnected = false;
+
         // DOM elements
         const questionInput = document.getElementById('questionInput');
         const answerOutput = document.getElementById('answerOutput');
@@ -537,12 +569,14 @@
         const errorMessage = document.getElementById('errorMessage');
         const successMessage = document.getElementById('successMessage');
         const connectionStatus = document.getElementById('connectionStatus');
+        const n8nStatus = document.getElementById('n8nStatus');
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing...');
             console.log('Persistent user ID:', persistentUserId);
             initializeSupabase();
+            testN8NConnection();
         });
 
         function getPersistentUserId() {
@@ -574,6 +608,129 @@
             }
             
             return userId;
+        }
+
+        // N8N Integration Functions
+        async function testN8NConnection() {
+            try {
+                console.log('Testing N8N connection...');
+                const response = await fetch(N8N_BASE_URL + '/healthz', {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    n8nConnected = true;
+                    showN8NStatus('N8N Connected', true);
+                    console.log('N8N connection successful');
+                } else {
+                    throw new Error('N8N health check failed');
+                }
+            } catch (error) {
+                n8nConnected = false;
+                showN8NStatus('N8N Disconnected - Analytics disabled', false);
+                console.warn('N8N connection failed:', error.message);
+            }
+        }
+
+        async function sendQuestionToN8N(question, userSession, answerFound = false) {
+            if (!n8nConnected) {
+                console.warn('N8N not connected, skipping question tracking');
+                return;
+            }
+
+            try {
+                const payload = {
+                    question: question,
+                    user_session: userSession,
+                    asked_at: new Date().toISOString(),
+                    source: 'web_app',
+                    answer_found: answerFound,
+                    ip_address: await getUserIP(),
+                    user_agent: navigator.userAgent,
+                    referrer: document.referrer || null
+                };
+
+                console.log('Sending question to N8N:', payload);
+
+                const response = await fetch(N8N_QUESTION_WEBHOOK, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                    timeout: 10000
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Question sent to N8N successfully:', result);
+                } else {
+                    throw new Error(`N8N webhook failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Failed to send question to N8N:', error);
+                // Don't show error to user as this is not critical
+            }
+        }
+
+        async function syncQADataWithN8N(qaArray) {
+            if (!n8nConnected) {
+                console.warn('N8N not connected, skipping QA sync');
+                return false;
+            }
+
+            try {
+                console.log('Syncing QA data with N8N:', qaArray.length, 'items');
+
+                const response = await fetch(N8N_QA_SYNC_WEBHOOK, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: qaArray,
+                        sync_timestamp: new Date().toISOString(),
+                        source: 'web_app'
+                    }),
+                    timeout: 30000
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('QA data synced with N8N successfully:', result);
+                    return true;
+                } else {
+                    throw new Error(`N8N QA sync failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Failed to sync QA data with N8N:', error);
+                return false;
+            }
+        }
+
+        async function getUserIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.warn('Failed to get user IP:', error);
+                return null;
+            }
+        }
+
+        function showN8NStatus(message, connected) {
+            n8nStatus.textContent = message;
+            n8nStatus.className = connected ? 'n8n-status n8n-connected' : 'n8n-status n8n-disconnected';
+            n8nStatus.style.display = 'block';
+            
+            // Auto-hide success status after 5 seconds
+            if (connected) {
+                setTimeout(() => {
+                    n8nStatus.style.display = 'none';
+                }, 5000);
+            }
         }
 
         async function initializeSupabase() {
@@ -867,6 +1024,9 @@
                 addToRecentQuestions(qa.question);
                 hidePredictions();
                 showSuccessMessage('Answer found!');
+                
+                // Send to N8N with answer found = true
+                sendQuestionToN8N(qa.question, persistentUserId, true);
             }
         }
 
@@ -973,6 +1133,8 @@
             loading.style.display = 'block';
             askButton.disabled = true;
 
+            let answerFound = false;
+
             try {
                 // Simulate search delay
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -986,6 +1148,7 @@
                     answerOutput.value = exactMatch.answer;
                     await addToRecentQuestions(question);
                     showSuccessMessage('Answer found!');
+                    answerFound = true;
                 } else {
                     // Search for similar questions with better matching
                     const similarQuestions = findSimilarQuestions(question);
@@ -998,22 +1161,31 @@
                             answerOutput.value = bestMatch.qa.answer;
                             await addToRecentQuestions(question);
                             showSuccessMessage('Similar answer found!');
+                            answerFound = true;
                         } else {
                             // No good match found
                             answerOutput.value = 'No data available.\n\nSorry, I couldn\'t find an answer to your question in the Tally knowledge base.\n\nPlease try:\n• Rephrasing your question with different keywords\n• Being more specific about your Tally operation\n• Checking if your question is related to Tally software\n\nFor example, try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?\n• How to generate reports in Tally?';
                             showErrorMessage('No data available for this question');
+                            answerFound = false;
                         }
                     } else {
                         // No similar questions found at all
                         answerOutput.value = 'No data available.\n\nSorry, I couldn\'t find an answer to your question in the Tally knowledge base.\n\nPlease try:\n• Rephrasing your question with different keywords\n• Being more specific about your Tally operation\n• Checking if your question is related to Tally software\n\nFor example, try questions like:\n• How to create a new company in Tally?\n• How to create a ledger in Tally?\n• How to pass a journal entry in Tally?\n• How to generate reports in Tally?';
                         showErrorMessage('No data available for this question');
+                        answerFound = false;
                     }
                 }
+                
+                // Send question to N8N workflow (non-blocking)
+                sendQuestionToN8N(question, persistentUserId, answerFound);
                 
             } catch (error) {
                 console.error('Error getting answer:', error);
                 showErrorMessage('Error retrieving answer. Please try again.');
                 answerOutput.value = 'No data available.\n\nAn error occurred while searching for your answer. Please try again.';
+                
+                // Still send to N8N to track failed searches
+                sendQuestionToN8N(question, persistentUserId, false);
             } finally {
                 loading.style.display = 'none';
                 askButton.disabled = false;
@@ -1109,8 +1281,34 @@
             location.reload();
         }
 
-        // Make it available in console for testing
+        // Testing Functions (available in console)
         window.clearPersistentData = clearPersistentData;
+        window.testN8NConnection = testN8NConnection;
+        window.syncQADataWithN8N = syncQADataWithN8N;
+        
+        // Example QA sync function (call from console)
+        window.syncSampleQAData = async function() {
+            const sampleData = [
+                {
+                    question: "How to create a new company in Tally?",
+                    answer: "To create a new company in Tally: 1. Go to Gateway of Tally 2. Select 'Create Company' 3. Enter company details 4. Save",
+                    keywords: "create company new setup tally",
+                    category: "company_management",
+                    priority: 1
+                },
+                {
+                    question: "How to create a ledger in Tally?",
+                    answer: "To create a ledger: 1. Go to Gateway > Masters > Chart of Accounts > Ledgers 2. Select 'Create' 3. Enter ledger details 4. Save",
+                    keywords: "ledger create accounts chart",
+                    category: "accounts",
+                    priority: 1
+                }
+            ];
+            
+            const result = await syncQADataWithN8N(sampleData);
+            console.log('Sample QA sync result:', result);
+            return result;
+        };
     </script>
 </body>
 </html>
