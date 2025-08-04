@@ -541,7 +541,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqdXZjemdieGN4d2lmamdqcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyODA2OTUsImV4cCI6MjA2Njg1NjY5NX0.ZohvZVAdkVn3Rcpeh03tP1uSxdPbgkwr8E0kcIoeoYE';
         
         // N8N Configuration - UPDATE THESE WITH YOUR N8N URLS
-        const N8N_BASE_URL = 'https://anjali123456.app.n8n.cloud'; // Change to your n8n URL
+        const N8N_BASE_URL = 'https://anjali123456.app.n8n.cloud/webhook/webhook-tally-question'; // Change to your n8n URL
         const N8N_QUESTION_WEBHOOK = `${N8N_BASE_URL}/webhook/webhook-tally-question`;
         const N8N_QA_SYNC_WEBHOOK = `${N8N_BASE_URL}/webhook/webhook-tally-qa-sync`;
 
@@ -611,40 +611,27 @@
         }
 
         // N8N Integration Functions
-        // N8N Integration Functions
-async function testN8NConnection() {
-    try {
-        console.log('Testing N8N connection...');
-        
-        // Test with actual webhook instead of healthz
-        const testPayload = {
-            question: "test connection",
-            user_session: "test",
-            asked_at: new Date().toISOString(),
-            source: "connection_test"
-        };
-
-        const response = await fetch(N8N_QUESTION_WEBHOOK, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(testPayload)
-        });
-        
-        if (response.ok) {
-            n8nConnected = true;
-            showN8NStatus('N8N Connected', true);
-            console.log('N8N connection successful');
-        } else {
-            throw new Error('N8N webhook test failed');
+        async function testN8NConnection() {
+            try {
+                console.log('Testing N8N connection...');
+                const response = await fetch(N8N_BASE_URL + '/healthz', {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    n8nConnected = true;
+                    showN8NStatus('N8N Connected', true);
+                    console.log('N8N connection successful');
+                } else {
+                    throw new Error('N8N health check failed');
+                }
+            } catch (error) {
+                n8nConnected = false;
+                showN8NStatus('N8N Disconnected - Analytics disabled', false);
+                console.warn('N8N connection failed:', error.message);
+            }
         }
-    } catch (error) {
-        n8nConnected = false;
-        showN8NStatus('N8N Disconnected - Analytics disabled', false);
-        console.warn('N8N connection failed:', error.message);
-    }
-}
 
         async function sendQuestionToN8N(question, userSession, answerFound = false) {
             if (!n8nConnected) {
@@ -749,7 +736,7 @@ async function testN8NConnection() {
         async function initializeSupabase() {
             try {
                 // Check if Supabase credentials are configured
-                if (SUPABASE_URL === 'https://vjuvczgbxcxwifjgjpkv.supabase.co' || SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqdXZjemdieGN4d2lmamdqcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyODA2OTUsImV4cCI6MjA2Njg1NjY5NX0.ZohvZVAdkVn3Rcpeh03tP1uSxdPbgkwr8E0kcIoeoYE') {
+                if (SUPABASE_URL === 'YOUR_SUPABASE_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
                     showConnectionError('Please configure your Supabase credentials in the JavaScript code');
                     return;
                 }
